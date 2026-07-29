@@ -1,15 +1,25 @@
 # Waypoint ELD — Trip & Hours-of-Service Planner
 
-A full-stack app that takes a trip (current location, pickup, drop-off, and
-hours already used in the driver's 70-hr/8-day cycle) and returns:
+A full-stack application built for the **Spotter Full Stack Developer Assessment** that takes a trip (current location, pickup, drop-off, and hours already used in the driver's 70-hr/8-day cycle) and outputs:
 
 1. A mapped route with stop markers (pickup, drop-off, fueling).
-2. Fully-drawn **FMCSA driver's daily log sheets** — one per calendar day of
-   the trip — with duty status plotted exactly like the paper log grid
-   (Off Duty / Sleeper Berth / Driving / On Duty), totals, and remarks.
+2. Fully-drawn **FMCSA driver's daily log sheets** — one per calendar day of the trip — with duty status plotted exactly like the paper log grid (Off Duty / Sleeper Berth / Driving / On Duty), totals, and remarks.
 
-Built with **Django + Django REST Framework** (backend) and **React + Vite**
-(frontend).
+Built with **Django + Django REST Framework** (backend) and **React + Vite** (frontend).
+
+---
+
+## 📹 Video Walkthrough & Presentation
+
+> 🎥 **[Watch the 4-Minute Loom Video Walkthrough](https://www.loom.com/share/ce597a2c9c7d4a36ba357ca97de4524c)**
+
+[![Waypoint ELD Loom Presentation](https://cdn.loom.com/sessions/thumbnails/ce597a2c9c7d4a36ba357ca97de4524c-with-play.gif)](https://www.loom.com/share/ce597a2c9c7d4a36ba357ca97de4524c)
+
+<div align="center" style="margin-top: 16px;">
+  <iframe src="https://www.loom.com/embed/ce597a2c9c7d4a36ba357ca97de4524c" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="width: 100%; max-width: 720px; height: 405px; border-radius: 8px;"></iframe>
+</div>
+
+---
 
 ## Assumptions (per assessment brief)
 
