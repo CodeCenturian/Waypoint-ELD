@@ -15,9 +15,9 @@ Built with **Django + Django REST Framework** (backend) and **React + Vite** (fr
 
 [![Waypoint ELD Loom Presentation](https://cdn.loom.com/sessions/thumbnails/ce597a2c9c7d4a36ba357ca97de4524c-with-play.gif)](https://www.loom.com/share/ce597a2c9c7d4a36ba357ca97de4524c)
 
-<div align="center" style="margin-top: 16px;">
+<!-- <div align="center" style="margin-top: 16px;">
   <iframe src="https://www.loom.com/embed/ce597a2c9c7d4a36ba357ca97de4524c" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen style="width: 100%; max-width: 720px; height: 405px; border-radius: 8px;"></iframe>
-</div>
+</div> -->
 
 ---
 
