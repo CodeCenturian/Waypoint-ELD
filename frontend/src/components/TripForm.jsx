@@ -21,7 +21,7 @@ export default function TripForm({ onSubmit, loading }) {
     e.preventDefault();
     setTouched(true);
     if (!form.currentLocation || !form.pickupLocation || !form.dropoffLocation || form.cycleUsed === "") {
-      return;
+      return "Check the names of the Locations and the Cycle Used field. All fields should be correct.";
     }
     onSubmit(form);
   };
@@ -66,6 +66,7 @@ export default function TripForm({ onSubmit, loading }) {
 
       <button className="btn-primary" type="submit" disabled={loading}>
         {loading ? "Calculating route & logs…" : "Generate Route + ELD Logs"}
+        {/* to add the thinking steps */}
       </button>
     </form>
   );

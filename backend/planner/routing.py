@@ -5,9 +5,6 @@ Geocoding: OpenStreetMap Nominatim (https://nominatim.org) - free, no API key.
 Routing:   OSRM public demo server (https://router.project-osrm.org) - free,
            no API key, driving profile.
 
-Both are rate-limited public services intended for demo/dev use; that's a
-fine fit for a take-home assessment. In a production system you'd swap in
-a paid provider (Mapbox, ORS with a key, Google) behind the same interface.
 """
 import requests
 
@@ -15,7 +12,7 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 OSRM_URL = "https://router.project-osrm.org/route/v1/driving"
 METERS_PER_MILE = 1609.344
 
-HEADERS = {"User-Agent": "eld-trip-planner-assessment/1.0"}
+HEADERS = {"User-Agent": "eld-trip-planner/1.0"}
 
 
 class RoutingError(Exception):
