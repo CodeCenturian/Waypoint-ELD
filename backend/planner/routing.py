@@ -36,9 +36,34 @@ def _is_in_north_america(lat, lon):
     return NA_LAT_MIN <= lat <= NA_LAT_MAX and NA_LON_MIN <= lon <= NA_LON_MAX
 
 
+ARCGIS_URL = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates"
+
+
+def _geocode_arcgis(place: str):
+    """Fallback geocoder using ArcGIS World Geocoding Server.
+    Free, no API key required, and does not block shared cloud server IPs (Render/Vercel/Railway).
+    """
+    resp = requests.get(
+        ARCGIS_URL,
+        params={"f": "json", "singleLine": place, "maxLocations": 1},
+        headers=HEADERS,
+        timeout=10,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    candidates = data.get("candidates", [])
+    if not candidates:
+        return None
+    c = candidates[0]
+    lat = float(c["location"]["y"])
+    lon = float(c["location"]["x"])
+    name = c.get("address", place)
+    return lat, lon, name
+
+
 def geocode(place: str):
     """Return (lat, lon, display_name) for a free-text place string.
-    Enforces a time.sleep rate limit to respect Nominatim's 1 req/sec policy.
+    Tries Nominatim first; if blocked by cloud hosting IP rules, falls back seamlessly to ArcGIS.
     Validates that the result is within North America (FMCSA jurisdiction).
     """
     global _last_nominatim_time
@@ -48,24 +73,35 @@ def geocode(place: str):
         time.sleep(1.1 - elapsed)
     _last_nominatim_time = time.time()
 
+    lat, lon, name = None, None, None
+
+    # Attempt 1: OpenStreetMap Nominatim
     try:
         resp = requests.get(
             NOMINATIM_URL,
             params={"q": place, "format": "json", "limit": 1},
             headers=HEADERS,
-            timeout=10,
+            timeout=8,
         )
-        if resp.status_code == 403 or resp.status_code == 429:
-            raise RoutingError("Geocoding service rate limit reached. Please wait 2 seconds and try again.")
-        resp.raise_for_status()
-        data = resp.json()
-    except requests.exceptions.RequestException as exc:
-        raise RoutingError(f"Could not connect to geocoding service for '{place}'. Please try again shortly.") from exc
+        if resp.status_code == 200:
+            data = resp.json()
+            if data:
+                top = data[0]
+                lat, lon, name = float(top["lat"]), float(top["lon"]), top.get("display_name", place)
+    except Exception:
+        pass
 
-    if not data:
+    # Attempt 2: Fallback to ArcGIS World Geocoder if Nominatim failed or was blocked by cloud host IP
+    if lat is None or lon is None:
+        try:
+            res = _geocode_arcgis(place)
+            if res:
+                lat, lon, name = res
+        except Exception:
+            pass
+
+    if lat is None or lon is None:
         raise RoutingError(f"Could not find location: '{place}'. Please check the city/state spelling.")
-    top = data[0]
-    lat, lon = float(top["lat"]), float(top["lon"])
 
     if not _is_in_north_america(lat, lon):
         raise RoutingError(
@@ -73,7 +109,7 @@ def geocode(place: str):
             f"FMCSA HOS rules apply to North American routes only."
         )
 
-    return lat, lon, top.get("display_name", place)
+    return lat, lon, name
 
 
 def route(coords):
