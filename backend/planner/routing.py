@@ -13,15 +13,17 @@ NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 OSRM_URL = "https://router.project-osrm.org/route/v1/driving"
 METERS_PER_MILE = 1609.344
 
-HEADERS = {"User-Agent": "eld-trip-planner/1.0"}
+HEADERS = {
+    "User-Agent": "WaypointELD/1.0 (ashuotshkumariiitb@gmail.com; spotter-assessment-app)",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 _last_nominatim_time = 0.0
 
 # Continental US/Canada/Mexico bounding box for FMCSA jurisdiction validation
 NA_LAT_MIN, NA_LAT_MAX = 24.0, 60.0   # ~Key West to ~northern Canada
 NA_LON_MIN, NA_LON_MAX = -130.0, -60.0  # ~Pacific coast to ~Atlantic coast
 
-# Maximum plausible one-way driving distance in miles (coast-to-coast US is ~3,000 mi;
-# 6,000 allows for multi-stop routes across the entire continent with margin)
+# Maximum plausible one-way driving distance in miles
 MAX_ROUTE_DISTANCE_MILES = 6000.0
 
 
@@ -42,19 +44,26 @@ def geocode(place: str):
     global _last_nominatim_time
     now = time.time()
     elapsed = now - _last_nominatim_time
-    if elapsed < 1.0:
-        time.sleep(1.0 - elapsed)
+    if elapsed < 1.1:
+        time.sleep(1.1 - elapsed)
     _last_nominatim_time = time.time()
-    resp = requests.get(
-        NOMINATIM_URL,
-        params={"q": place, "format": "json", "limit": 1},
-        headers=HEADERS,
-        timeout=10,
-    )
-    resp.raise_for_status()
-    data = resp.json()
+
+    try:
+        resp = requests.get(
+            NOMINATIM_URL,
+            params={"q": place, "format": "json", "limit": 1},
+            headers=HEADERS,
+            timeout=10,
+        )
+        if resp.status_code == 403 or resp.status_code == 429:
+            raise RoutingError("Geocoding service rate limit reached. Please wait 2 seconds and try again.")
+        resp.raise_for_status()
+        data = resp.json()
+    except requests.exceptions.RequestException as exc:
+        raise RoutingError(f"Could not connect to geocoding service for '{place}'. Please try again shortly.") from exc
+
     if not data:
-        raise RoutingError(f"Could not geocode location: '{place}'")
+        raise RoutingError(f"Could not find location: '{place}'. Please check the city/state spelling.")
     top = data[0]
     lat, lon = float(top["lat"]), float(top["lon"])
 
@@ -78,13 +87,17 @@ def route(coords):
     """
     lonlat = ";".join(f"{lon},{lat}" for lat, lon in coords)
     url = f"{OSRM_URL}/{lonlat}"
-    resp = requests.get(
-        url,
-        params={"overview": "full", "geometries": "geojson", "steps": "false"},
-        timeout=15,
-    )
-    resp.raise_for_status()
-    data = resp.json()
+    try:
+        resp = requests.get(
+            url,
+            params={"overview": "full", "geometries": "geojson", "steps": "false"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except requests.exceptions.RequestException as exc:
+        raise RoutingError("Routing service (OSRM) is unreachable. Please try again in a few seconds.") from exc
+
     if data.get("code") != "Ok" or not data.get("routes"):
         raise RoutingError("Could not compute a drivable route between the given locations.")
 

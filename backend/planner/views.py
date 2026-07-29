@@ -50,9 +50,11 @@ def plan_trip_view(request):
         ])
     except RoutingError as exc:
         return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception:
+    except Exception as exc:
+        import logging
+        logging.exception("Routing/Geocoding error: %s", exc)
         return Response(
-            {"error": "The routing service is temporarily unavailable. Please try again shortly."},
+            {"error": f"Routing service connection issue: {str(exc)}. Please try again in a few seconds."},
             status=status.HTTP_502_BAD_GATEWAY,
         )
 
