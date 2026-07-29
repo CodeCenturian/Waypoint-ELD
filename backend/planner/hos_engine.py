@@ -245,7 +245,61 @@ def segments_to_daily_logs(segments):
             cursor = piece_end
 
     ordered = [days[k] for k in sorted(days.keys())]
+
+    # Fill gaps for each day so totals sum to exactly 24 hours by
+    # inserting OFF_DUTY segments where no activity is present.
     for d in ordered:
-        for k in d["totals"]:
-            d["totals"][k] = round(d["totals"][k], 2)
+        segs = sorted(d["segments"], key=lambda s: s["start_hour"])
+        filled = []
+        prev = 0.0
+        for s in segs:
+            # if there's a gap before this segment, fill with OFF_DUTY
+            if s["start_hour"] > prev + 1e-6:
+                filled.append({
+                    "status": OFF_DUTY,
+                    "start_hour": round(prev, 3),
+                    "end_hour": round(s["start_hour"], 3),
+                    "label": "Auto-filled Off-Duty gap",
+                })
+            filled.append(s)
+            prev = s["end_hour"]
+        # fill to midnight if needed
+        if prev < 24.0 - 1e-6:
+            filled.append({
+                "status": OFF_DUTY,
+                "start_hour": round(prev, 3),
+                "end_hour": 24.0,
+                "label": "Auto-filled Off-Duty gap",
+            })
+
+        # recompute totals and remarks from filled segments
+        totals = {OFF_DUTY: 0.0, SLEEPER: 0.0, DRIVING: 0.0, ON_DUTY: 0.0}
+        remarks = []
+        for seg in filled:
+            hours = seg["end_hour"] - seg["start_hour"]
+            totals[seg["status"]] += hours
+            if seg.get("label") and (not remarks or remarks[-1] != seg.get("label")):
+                # Use the start time of the segment in HH:MM for the remark
+                hh = int(seg["start_hour"]) % 24
+                mm = int(round((seg["start_hour"] - int(seg["start_hour"])) * 60))
+                remarks.append(f"{hh:02d}:{mm:02d} - {seg.get('label')}")
+
+        # Round totals and adjust any tiny floating point drift by adding
+        # the difference to OFF_DUTY so the totals sum to 24.00 exactly.
+        for k in totals:
+            totals[k] = round(totals[k], 2)
+        sum_tot = round(sum(totals.values()), 2)
+        diff = round(24.0 - sum_tot, 2)
+        if abs(diff) >= 0.01:
+            totals[OFF_DUTY] = round(totals[OFF_DUTY] + diff, 2)
+            # also extend the last OFF_DUTY segment if present
+            for seg in reversed(filled):
+                if seg["status"] == OFF_DUTY:
+                    seg["end_hour"] = round(seg["end_hour"] + diff, 3)
+                    break
+
+        d["segments"] = filled
+        d["totals"] = totals
+        d["remarks"] = remarks
+
     return ordered
