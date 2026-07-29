@@ -3,6 +3,7 @@ import TripForm from "./components/TripForm";
 import MapView from "./components/MapView";
 import LogSheet from "./components/LogSheet";
 import TripSummary from "./components/TripSummary";
+import PastTrips from "./components/PastTrips";
 import { planTrip } from "./api";
 
 export default function App() {
@@ -59,35 +60,49 @@ export default function App() {
         {error && <div className="error-banner">{error}</div>}
 
         {result && (
-          <>
-            <TripSummary summary={result.trip_summary} route={result.route} />
+          <div id="trip-results" className="results-container">
+            <TripSummary summary={result.trip_summary} />
+
+            {result.route && (
+              <section className="panel">
+                <span className="panel-eyebrow">Interactive Route &amp; Stop Map</span>
+                <MapView route={result.route} locations={result.locations} />
+                <div className="leg-breakdown">
+                  {result.route.legs?.map((leg, i) => (
+                    <span key={i} className="leg-chip">
+                      {leg.from} &rarr; {leg.to}: <strong>{leg.distance_miles} mi</strong> ({leg.duration_hours} hrs drive time)
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section className="panel">
-              <span className="panel-eyebrow">Route</span>
-              <MapView route={result.route} locations={result.locations} />
-              <div className="leg-breakdown">
-                {result.route.legs.map((leg, i) => (
-                  <span key={i}>
-                    {leg.from} &rarr; {leg.to}: <strong>{leg.distance_miles} mi</strong> / {leg.duration_hours}h
-                  </span>
-                ))}
-              </div>
-            </section>
-
-            <section className="panel">
-              <span className="panel-eyebrow">Driver's Daily Logs</span>
+              <span className="panel-eyebrow">FMCSA Driver's Daily Log Sheets</span>
               <div className="log-sheet-stack">
-                {result.daily_logs.map((day, i) => (
+                {result.daily_logs?.map((day, i) => (
                   <LogSheet key={day.date} day={day} dayNumber={i + 1} />
                 ))}
               </div>
             </section>
-          </>
+          </div>
         )}
+
+        <PastTrips onLoad={(data) => {
+          setResult(data);
+          setTimeout(() => {
+            document.getElementById("trip-results")?.scrollIntoView({ behavior: "smooth" });
+          }, 100);
+        }} />
       </main>
 
       <footer className="app-footer">
-        Routing via OpenStreetMap Nominatim &amp; OSRM &middot; HOS assumptions: 70hr/8day cycle, no adverse conditions, fuel every 1,000 mi, 1hr pickup/drop-off.
+        <div>Made by <strong>Ashutosh Kumar</strong></div>
+        <div style={{ marginTop: 6 }}>
+          <a href="mailto:ashuotshkumariiitb@gmail.com" style={{ color: "inherit", textDecoration: "underline" }}>ashuotshkumariiitb@gmail.com</a>
+          {" \u00b7 "}
+          <a href="https://www.linkedin.com/in/ashutosh-kumar879/" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>LinkedIn</a>
+        </div>
       </footer>
     </div>
   );

@@ -3,9 +3,12 @@ from datetime import datetime
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from django.shortcuts import get_object_or_404
 
 from .routing import geocode, route, RoutingError
 from .hos_engine import plan_trip, segments_to_daily_logs
+from .models import Trip, Segment
+from .serializers import TripSerializer
 
 
 @api_view(["POST"])
@@ -98,4 +101,105 @@ def plan_trip_view(request):
         },
         "daily_logs": daily_logs,
     }
+    # Persist the trip and its segments so frontend can list past trips
+    try:
+        trip = Trip.objects.create(
+            start_time=trip_start,
+            current_location=cur_name,
+            pickup_location=pick_name,
+            dropoff_location=drop_name,
+            current_cycle_used=cycle_used,
+            total_miles=plan.get("total_miles"),
+            total_driving_hours=plan.get("total_driving_hours"),
+            total_on_duty_hours=plan.get("total_on_duty_hours"),
+            total_off_duty_hours=plan.get("total_off_duty_hours"),
+            final_cycle_hours=plan.get("final_cycle_hours"),
+        )
+        for seg in plan["segments"]:
+            Segment.objects.create(
+                trip=trip,
+                status=seg.status,
+                start=seg.start,
+                end=seg.end,
+                label=seg.label,
+            )
+        response["saved_trip_id"] = trip.id
+    except Exception:
+        # don't fail the API if persistence fails; just continue without saving
+        pass
+
+    return Response(response)
+
+
+@api_view(["GET"])
+def list_trips(request):
+    trips = Trip.objects.order_by("-created_at").all()[:50]
+    serializer = TripSerializer(trips, many=True)
+    return Response(serializer.data)
+
+
+@api_view(["GET"])
+def trip_detail(request, trip_id):
+    trip = get_object_or_404(Trip, pk=trip_id)
+    # order segments by start time to reconstruct the trip
+    segments = list(trip.segments.order_by("start").all())
+
+    # Recreate the daily_logs structure from stored segments so frontend can render exact saved trip
+    daily_logs = segments_to_daily_logs(segments)
+    end_time = segments[-1].end.isoformat() if segments else trip.start_time.isoformat()
+
+    locations_data = {
+        "current": {"name": trip.current_location},
+        "pickup": {"name": trip.pickup_location},
+        "dropoff": {"name": trip.dropoff_location},
+    }
+    route_data_resp = None
+
+    try:
+        cur_lat, cur_lon, cur_name = geocode(trip.current_location)
+        pick_lat, pick_lon, pick_name = geocode(trip.pickup_location)
+        drop_lat, drop_lon, drop_name = geocode(trip.dropoff_location)
+
+        route_data = route([
+            (cur_lat, cur_lon),
+            (pick_lat, pick_lon),
+            (drop_lat, drop_lon),
+        ])
+        leg1, leg2 = route_data["legs"][0], route_data["legs"][1]
+
+        locations_data = {
+            "current": {"name": cur_name, "lat": cur_lat, "lon": cur_lon},
+            "pickup": {"name": pick_name, "lat": pick_lat, "lon": pick_lon},
+            "dropoff": {"name": drop_name, "lat": drop_lat, "lon": drop_lon},
+        }
+        route_data_resp = {
+            "geometry": route_data["geometry"],
+            "total_distance_miles": route_data["distance_miles"],
+            "total_drive_duration_hours": route_data["duration_hours"],
+            "legs": [
+                {"from": "Current Location", "to": "Pickup", **leg1},
+                {"from": "Pickup", "to": "Drop-off", **leg2},
+            ],
+        }
+    except Exception:
+        # Fallback if external geocoding/routing service fails
+        pass
+
+    response = {
+        "saved_trip_id": trip.id,
+        "locations": locations_data,
+        "route": route_data_resp,
+        "trip_summary": {
+            "start_time": trip.start_time.isoformat(),
+            "end_time": end_time,
+            "total_days": len(daily_logs),
+            "total_driving_hours": trip.total_driving_hours,
+            "total_on_duty_hours": trip.total_on_duty_hours,
+            "total_off_duty_hours": trip.total_off_duty_hours,
+            "total_miles": trip.total_miles,
+            "cycle_hours_used_at_end": trip.final_cycle_hours,
+        },
+        "daily_logs": daily_logs,
+    }
+
     return Response(response)

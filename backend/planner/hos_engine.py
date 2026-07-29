@@ -209,7 +209,8 @@ def segments_to_daily_logs(segments):
         return dt.date().isoformat()
 
     def day_start(dt: datetime):
-        return datetime(dt.year, dt.month, dt.day)
+        # preserve tzinfo (if dt is timezone-aware) when creating midnight
+        return dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
     for seg in segments:
         cursor = seg.start

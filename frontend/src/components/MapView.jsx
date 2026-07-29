@@ -3,7 +3,7 @@ import L from "leaflet";
 import { useEffect, useMemo } from "react";
 import "leaflet/dist/leaflet.css";
 
-// Custom pin factory so we don't depend on leaflet's default marker image assets
+// Custom Golden Hour pin factory
 function pin(color, label) {
   return L.divIcon({
     className: "",
@@ -15,10 +15,10 @@ function pin(color, label) {
 }
 
 const ICONS = {
-  current: pin("#3C5875", "S"),
-  pickup: pin("#F2A93B", "P"),
-  dropoff: pin("#D64545", "D"),
-  fuel: pin("#6E9B7A", "F"),
+  current: pin("#2E4034", "S"),
+  pickup: pin("#E8912D", "P"),
+  dropoff: pin("#C2492E", "D"),
+  fuel: pin("#7C9070", "F"),
 };
 
 function FitBounds({ positions }) {
@@ -31,7 +31,7 @@ function FitBounds({ positions }) {
   return null;
 }
 
-export default function MapView({ route, locations, stops }) {
+export default function MapView({ route, locations }) {
   const routePositions = useMemo(
     () => (route?.geometry || []).map(([lon, lat]) => [lat, lon]),
     [route]
@@ -56,17 +56,23 @@ export default function MapView({ route, locations, stops }) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <Polyline positions={routePositions} pathOptions={{ color: "#F2A93B", weight: 4 }} />
+      <Polyline positions={routePositions} pathOptions={{ color: "#E8912D", weight: 4 }} />
 
-      <Marker position={[locations.current.lat, locations.current.lon]} icon={ICONS.current}>
-        <Popup>Start: {locations.current.name}</Popup>
-      </Marker>
-      <Marker position={[locations.pickup.lat, locations.pickup.lon]} icon={ICONS.pickup}>
-        <Popup>Pickup: {locations.pickup.name}</Popup>
-      </Marker>
-      <Marker position={[locations.dropoff.lat, locations.dropoff.lon]} icon={ICONS.dropoff}>
-        <Popup>Drop-off: {locations.dropoff.name}</Popup>
-      </Marker>
+      {locations?.current?.lat != null && locations?.current?.lon != null && (
+        <Marker position={[locations.current.lat, locations.current.lon]} icon={ICONS.current}>
+          <Popup>Start: {locations.current.name}</Popup>
+        </Marker>
+      )}
+      {locations?.pickup?.lat != null && locations?.pickup?.lon != null && (
+        <Marker position={[locations.pickup.lat, locations.pickup.lon]} icon={ICONS.pickup}>
+          <Popup>Pickup: {locations.pickup.name}</Popup>
+        </Marker>
+      )}
+      {locations?.dropoff?.lat != null && locations?.dropoff?.lon != null && (
+        <Marker position={[locations.dropoff.lat, locations.dropoff.lon]} icon={ICONS.dropoff}>
+          <Popup>Drop-off: {locations.dropoff.name}</Popup>
+        </Marker>
+      )}
 
       <FitBounds positions={routePositions} />
     </MapContainer>

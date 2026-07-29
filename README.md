@@ -71,6 +71,17 @@ npm run dev
 
 App is now at `http://127.0.0.1:5173`.
 
+### Environment (.env)
+
+- The backend loads `backend/.env` (via `python-dotenv`) for local dev. Do not commit this file.
+- Important variables:
+  - `SECRET_KEY` — Django secret (production: set a strong value in your host env)
+  - `DEBUG` — `False` in production
+  - `DATABASE_URL` — set to your Postgres URL for production (e.g. Neon)
+  - `CORS_ALLOWED_ORIGINS` / `ALLOWED_HOSTS`
+
+You can use `backend/.env` for local development and the hosting dashboard/env for production.
+
 ## Deployment
 
 ### Backend → Render (free tier)
@@ -115,3 +126,38 @@ for d in segments_to_daily_logs(plan['segments']):
     print(d['date'], d['totals'])
 "
 ```
+
+## Saved trips (history)
+
+The backend now persists generated plans so you can review past trips from the frontend.
+
+- Endpoint: `GET /api/trips/` — returns recent saved trips with their `segments`.
+- When you POST to `POST /api/plan-trip/` the API will attempt to save the generated trip and return `saved_trip_id` in the response.
+- Frontend: the app includes a "Saved Trips" panel (left under the form) that fetches `/api/trips/` and lets you load a trip into the viewer.
+
+If you add/remove models, run:
+
+```bash
+cd backend
+.venv\Scripts\Activate.ps1   # or source venv/bin/activate on mac/linux
+python manage.py makemigrations
+python manage.py migrate
+```
+
+## Running tests
+
+Run the HOS engine unit tests with Django's test runner (uses your `DATABASE_URL`):
+
+```bash
+cd backend
+.venv\Scripts\Activate.ps1
+python manage.py test planner.tests.HosEngineTests.test_plan_trip_and_daily_totals
+```
+
+If your `DATABASE_URL` points to a shared Postgres instance (Neon), prefer running tests against SQLite locally or use `--keepdb` to avoid teardown issues.
+
+## Notes / Production
+
+- Django 6 requires Python 3.12+; ensure your deployment environment uses Python 3.12 or later.
+- Do not use SQLite in production — set `DATABASE_URL` to a managed Postgres and run migrations on deploy.
+- Add authentication before exposing saved trips publicly.
